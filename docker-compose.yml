@@ -4,6 +4,12 @@ services:
     container_name: static-assets
     restart: unless-stopped
     read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    environment:
+      - NGINX_ENTRYPOINT_LOCAL_RESOLVERS=0
     cap_drop:
       - ALL
     security_opt:
@@ -25,7 +31,7 @@ services:
       - app_network
 
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/saveguard.js"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/saveguard.js"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -33,15 +39,15 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.static-assets.rule=Host(`${SERVICE_DOMAIN}`)"
-      - "traefik.http.routers.static-assets.entrypoints=websecure"
-      - "traefik.http.routers.static-assets.tls.certresolver=letsencrypt"
-      - "traefik.http.services.static-assets.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.static-cors.headers.accesscontrolallowmethods=GET,OPTIONS"
-      - "traefik.http.middlewares.static-cors.headers.accesscontrolalloworiginlist=${ALLOWED_ORIGIN}"
-      - "traefik.http.middlewares.static-cors.headers.accesscontrolmaxage=100"
-      - "traefik.http.middlewares.static-cors.headers.addvaryheader=true"
-      - "traefik.http.routers.static-assets.middlewares=static-cors"
+      - "traefik.docker.network=${DOCKER_NETWORK}"
+      - "traefik.http.routers.saveguard-rt.rule=Host(`${SERVICE_DOMAIN}`)"
+      - "traefik.http.routers.saveguard-rt.entrypoints=websecure"
+      - "traefik.http.routers.saveguard-rt.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.saveguard-rt.service=saveguard-svc"
+      - "traefik.http.services.saveguard-svc.loadbalancer.server.port=8080"
+      - "traefik.http.routers.saveguard-rt.middlewares=saveguard-cors"
+      - "traefik.http.middlewares.saveguard-cors.headers.accesscontrolallowmethods=GET,OPTIONS"
+      - "traefik.http.middlewares.saveguard-cors.headers.accesscontrolalloworiginlist=${ALLOWED_ORIGIN}"
 
 networks:
   app_network:
