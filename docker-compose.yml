@@ -1,0 +1,49 @@
+services:
+  static-assets:
+    image: nginxinc/nginx-unprivileged:1.25.4-alpine
+    container_name: static-assets
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+      
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64M
+        reservations:
+          cpus: '0.01'
+          memory: 16M
+
+    volumes:
+      - ./public:/usr/share/nginx/html:ro
+
+    networks:
+      - app_network
+
+    healthcheck:
+      test:["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/saveguard.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.static-assets.rule=Host(`${SERVICE_DOMAIN}`)"
+      - "traefik.http.routers.static-assets.entrypoints=websecure"
+      - "traefik.http.routers.static-assets.tls.certresolver=letsencrypt"
+      - "traefik.http.services.static-assets.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.static-cors.headers.accesscontrolallowmethods=GET,OPTIONS"
+      - "traefik.http.middlewares.static-cors.headers.accesscontrolalloworiginlist=${ALLOWED_ORIGIN}"
+      - "traefik.http.middlewares.static-cors.headers.accesscontrolmaxage=100"
+      - "traefik.http.middlewares.static-cors.headers.addvaryheader=true"
+      - "traefik.http.routers.static-assets.middlewares=static-cors"
+
+networks:
+  app_network:
+    external: true
+    name: ${DOCKER_NETWORK}
